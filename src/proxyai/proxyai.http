@@ -1,0 +1,26 @@
+@proxyai_HostAddress = http://localhost:5185
+
+GET {{proxyai_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+# YARP Proxy Endpoints
+
+# Get all posts (proxied to jsonplaceholder.typicode.com)
+GET {{proxyai_HostAddress}}/posts
+Accept: application/json
+
+###
+
+# Get a single post (proxied to jsonplaceholder.typicode.com)
+GET {{proxyai_HostAddress}}/posts/1
+Accept: application/json
+
+###
+
+# Get all users (proxied to jsonplaceholder.typicode.com)
+GET {{proxyai_HostAddress}}/users
+Accept: application/json
+
+###

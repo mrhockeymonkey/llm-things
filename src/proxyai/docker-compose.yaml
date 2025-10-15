@@ -1,0 +1,11 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "4000:4000"
+    environment:
+      - OTEL_EXPORTER=console
+    command: --config config.yaml --detailed_debug
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    restart: unless-stopped
