@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a minimal ASP.NET Core 9.0 Web API project named "proxyai". It uses the new minimal API approach with top-level statements in Program.cs.
+This is a reverse proxy server built with ASP.NET Core 9.0 and YARP (Yet Another Reverse Proxy) to intercept and inspect API calls. Its primary purpose is to allow debugging and inspection of requests/responses sent to LLM APIs (OpenAI, Anthropic, etc.) by acting as a transparent proxy.
 
 ## Development Commands
 
@@ -15,8 +15,12 @@ dotnet run                      # Run the application (uses launch settings)
 dotnet watch run                # Run with hot reload during development
 ```
 
-### Testing
-Currently no test project is configured.
+### Using the Proxy
+```bash
+# Set Claude Code to use the proxy for debugging
+export ANTHROPIC_BASE_URL=http://localhost:5185
+claude
+```
 
 ### Project Management
 ```bash
@@ -26,20 +30,36 @@ dotnet clean                    # Clean build artifacts
 
 ## Architecture
 
-### Project Structure
-- **Program.cs**: Single entry point containing all application configuration, service registration, and endpoint mapping using minimal API style
-- **appsettings.json / appsettings.Development.json**: Configuration files for logging and environment-specific settings
-- **Properties/launchSettings.json**: Defines launch profiles with URLs (http://localhost:5185, https://localhost:7206)
+### Core Components
+- **YARP Reverse Proxy**: Microsoft's lightweight reverse proxy library configured in-memory
+- **Request Inspection Middleware**: Custom middleware at Program.cs:24-57 that logs all requests (method, path, headers, body) before forwarding to backend
+- **In-Memory Route Configuration**: Routes and clusters defined in GetRoutes() and GetClusters() methods
 
-### Technology Stack
-- **.NET 9.0**: Target framework
-- **ASP.NET Core Minimal APIs**: Uses top-level statements, no controllers
-- **OpenAPI**: Configured for API documentation (enabled in Development environment at `/openapi/v1.json`)
+### Proxy Configuration
 
-### Current Endpoints
-- `GET /weatherforecast`: Sample endpoint returning 5-day weather forecast
+All routing is configured in Program.cs via two static methods:
 
-### Configuration
-- HTTPS redirection enabled for all environments
-- OpenAPI endpoint only mapped in Development environment
-- Logging configured via appsettings.json (Information level default, Warning for ASP.NET Core)
+**Routes** (Program.cs:70-95):
+- `openai` route: Matches requests with Host header "api.openai.com", catches all paths
+- `sim` route: Matches paths starting with "/simulate/", routes to Anthropic API
+
+**Clusters** (Program.cs:98-136):
+- `openai` cluster: Forwards to https://api.openai.com
+- `sim` cluster: Forwards to https://api.anthropic.com
+
+### Request Flow
+1. Client sends request to localhost:5185 (HTTP) or localhost:7206 (HTTPS)
+2. Inspection middleware captures and logs: method, path, query string, headers, body
+3. Request body buffering enabled to allow multiple reads
+4. YARP routes request based on Host header or path pattern
+5. Request forwarded to configured backend (OpenAI or Anthropic)
+6. Response returned to client
+
+### Key Dependencies
+- **Yarp.ReverseProxy 2.3.0**: Core proxy functionality
+- **Microsoft.AspNetCore.OpenApi 9.0.0**: API documentation support
+
+### Debugging
+- Set breakpoint at Program.cs:27 to inspect incoming requests
+- Console logging outputs request details without breakpoint
+- Request body buffering allows inspection without breaking the stream
