@@ -1,5 +1,6 @@
 import asyncio
 import time
+import httpx
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -22,13 +23,16 @@ async def chat(id: int, client: AsyncOpenAI, sem: asyncio.Semaphore):
         print(completion.choices[0].message.content)
 
 async def main():
+    #limits = httpx.Limits(max_connections=5000, max_keepalive_connections=5000)
+    #http_client = httpx.AsyncClient(limits=limits)
     client = AsyncOpenAI(
         base_url="http://localhost:5185/openai/v1",
-        default_headers={"Accept-Encoding": "identity"} # only needed when logging response via proxy
+        default_headers={"Accept-Encoding": "identity"}, # only needed when logging response via proxy
+        #http_client=http_client
     )
 
     t0 = time.time()
-    sem = asyncio.Semaphore(1000)
+    sem = asyncio.Semaphore(2000)
 
     coros = [chat(i, client, sem) for i in range(10_000)]
     await asyncio.gather(*coros)

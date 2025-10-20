@@ -3,6 +3,13 @@ using Yarp.ReverseProxy.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    // options.Limits.MaxConcurrentConnections = 10000;
+    // options.Limits.MaxConcurrentUpgradedConnections = 10000;
+    // options.Limits.Http2.MaxStreamsPerConnection = 1000;
+});
+
 builder.Services.AddOpenApi();
 
 // Add YARP reverse proxy services
