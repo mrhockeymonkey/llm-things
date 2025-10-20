@@ -18,7 +18,7 @@ public class RecordEverythingMiddleware
     {
         // Enable buffering to allow reading the body multiple times
         context.Request.EnableBuffering();
-        
+
         // Read the request body
         string requestBody = string.Empty;
         if (context.Request.ContentLength > 0)
@@ -35,26 +35,31 @@ public class RecordEverythingMiddleware
             // Reset the stream position so downstream middleware can read it
             context.Request.Body.Position = 0;
         }
-        
+
+        // Capture the original response body stream
+        var originalResponseBody = context.Response.Body;
+
+        // Replace with a MemoryStream to capture the response
+        using var responseBodyStream = new MemoryStream();
+        context.Response.Body = responseBodyStream;
+
         await _next(context);
-        
-        
-        
-        // Read the request body
-        string responseBody = string.Empty;
-        using var responseReader = new StreamReader(
-            context.Response.Body,
+
+        // Read the response body from the MemoryStream
+        responseBodyStream.Seek(0, SeekOrigin.Begin);
+        string responseBody = await new StreamReader(
+            responseBodyStream, 
             encoding: System.Text.Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: false,
-            bufferSize: 1024,
-            leaveOpen: true);
+            detectEncodingFromByteOrderMarks: false, 
+            leaveOpen: true).ReadToEndAsync();
 
-        responseBody = await responseReader.ReadToEndAsync();
+        // Copy the captured response back to the original stream
+        responseBodyStream.Seek(0, SeekOrigin.Begin);
+        await responseBodyStream.CopyToAsync(originalResponseBody);
 
-        // Reset the stream position so downstream middleware can read it
-        context.Response.Body.Position = 0;
-        
-        
+        // Restore the original response body stream
+        context.Response.Body = originalResponseBody;
+
         var logEntry = new StringBuilder();
         logEntry.AppendLine($"=== {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} UTC ===");
         logEntry.AppendLine($"Method: {context.Request.Method}");
@@ -69,7 +74,7 @@ public class RecordEverythingMiddleware
         logEntry.AppendLine("Response Body:");
         logEntry.AppendLine(responseBody);
         logEntry.AppendLine("---");
-        
+
 
         // Write to log file
         await WriteToLogFileAsync(logEntry);

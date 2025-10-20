@@ -1,7 +1,5 @@
-using proxyai.Middleware;
 using proxyai.Transforms;
 using Yarp.ReverseProxy.Configuration;
-using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +12,8 @@ builder.Services.AddReverseProxy()
     {
         if (context.Route.RouteId == "openai-v1")
         {
-            //context.RequestTransforms.Add(new FakeChatCompletionRequestTransform());
+            // OPTION fake the output of /v1/chat/completion
+            context.RequestTransforms.Add(new FakeChatCompletionRequestTransform());
         }
     });
 
@@ -23,10 +22,9 @@ var app = builder.Build();
 app.MapOpenApi();
 app.UseHttpsRedirection();
 
-// Middleware to inspect requests before YARP processes them
-app.UseMiddleware<RecordEverythingMiddleware>();
+// OPTION Uncomment to log request/response to log.txt
+//app.UseMiddleware<RecordEverythingMiddleware>();
 
-// Map the reverse proxy
 app.MapReverseProxy();
 
 app.Run();
