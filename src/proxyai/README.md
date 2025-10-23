@@ -3,8 +3,10 @@
 To see what claude code is actually doing
 
 ```bash
-export ANTHROPIC_BASE_URL=http://localhost:5185
+# to inspect claude requests
+export ANTHROPIC_BASE_URL=http://localhost:5185/claude
 claude
 
-# > summarize the .http file
+# check connections (legacy event counter)
+dotnet counters monitor -n proxyai --counters Microsoft-AspNetCore-Server-Kestrel
 ```

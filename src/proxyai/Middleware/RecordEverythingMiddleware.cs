@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace proxyai.Middleware;
 
@@ -11,7 +12,7 @@ public class RecordEverythingMiddleware
     public RecordEverythingMiddleware(RequestDelegate next)
     {
         _next = next;
-        _logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "log.txt");
+        _logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "recorded.txt");
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -31,6 +32,11 @@ public class RecordEverythingMiddleware
                 leaveOpen: true);
 
             requestBody = await requestReader.ReadToEndAsync();
+            var json = JsonSerializer.Deserialize<JsonDocument>(requestBody);
+            requestBody = JsonSerializer.Serialize(json, new JsonSerializerOptions()
+            {
+                WriteIndented = true
+            });
 
             // Reset the stream position so downstream middleware can read it
             context.Request.Body.Position = 0;
@@ -64,11 +70,11 @@ public class RecordEverythingMiddleware
         logEntry.AppendLine($"=== {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} UTC ===");
         logEntry.AppendLine($"Method: {context.Request.Method}");
         logEntry.AppendLine($"Path: {context.Request.Path}{context.Request.QueryString}");
-        logEntry.AppendLine("Headers:");
-        foreach (var header in context.Request.Headers)
-        {
-            logEntry.AppendLine($"  {header.Key}: {header.Value}");
-        }
+        // logEntry.AppendLine("Headers:");
+        // foreach (var header in context.Request.Headers)
+        // {
+        //     logEntry.AppendLine($"  {header.Key}: {header.Value}");
+        // }
         logEntry.AppendLine("Request Body:");
         logEntry.AppendLine(requestBody);
         logEntry.AppendLine("Response Body:");

@@ -12,7 +12,7 @@ public class FakeChatCompletionRequestTransform : RequestTransform
     {
         if (context.Path != "/v1/chat/completions") return;
 
-        await Task.Delay(TimeSpan.FromSeconds(3));
+        await Task.Delay(TimeSpan.FromSeconds(10));
         
         // Set response headers
         context.HttpContext.Response.StatusCode = 200;

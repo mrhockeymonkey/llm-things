@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.HttpLogging;
+using NReco.Logging.File;
+using proxyai.Middleware;
 using proxyai.Transforms;
 using Yarp.ReverseProxy.Configuration;
 
@@ -5,12 +8,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    // options.Limits.MaxConcurrentConnections = 10000;
-    // options.Limits.MaxConcurrentUpgradedConnections = 10000;
+    // options.Limits.MaxConcurrentConnections = 10_000;
+    // options.Limits.MaxConcurrentUpgradedConnections = 10_000;
     // options.Limits.Http2.MaxStreamsPerConnection = 1000;
 });
 
 builder.Services.AddOpenApi();
+builder.Services.AddLogging(options =>
+{
+    //options.AddFile("log.txt", append: false);
+});
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.RequestMethod | 
+                            HttpLoggingFields.RequestPath |
+                            HttpLoggingFields.ResponseStatusCode |
+                            HttpLoggingFields.RequestBody |
+                            HttpLoggingFields.ResponseBody
+        ;
+    options.CombineLogs = true;
+    options.MediaTypeOptions.AddText("application/json");
+    options.RequestBodyLogLimit = Int32.MaxValue;
+    options.ResponseBodyLogLimit = Int32.MaxValue;
+});
 
 // Add YARP reverse proxy services
 builder.Services.AddReverseProxy()
@@ -26,12 +46,14 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+app.UseHttpLogging();
 app.MapOpenApi();
-app.UseHttpsRedirection();
 
 // OPTION Uncomment to log request/response to log.txt
+File.Delete("recorded.txt");
 //app.UseMiddleware<RecordEverythingMiddleware>();
 
+app.MapGet("/", () => Results.Json(new {hello = "world"}));
 app.MapReverseProxy();
 
 app.Run();
@@ -56,6 +78,22 @@ static RouteConfig[] GetRoutes()
                     ["PathPattern"] = "/v1/{**catch-all}"
                 }
             }
+        },
+        new RouteConfig
+        {
+            RouteId = "claude",
+            ClusterId = "claude",
+            Match = new RouteMatch
+            {
+                Path = "/claude/{**catch-all}"
+            },
+            Transforms = new[]
+            {
+                new Dictionary<string, string>
+                {
+                    ["PathPattern"] = "/{**catch-all}"
+                }
+            }
         }
     ];
 }
@@ -75,7 +113,7 @@ static ClusterConfig[] GetClusters()
                     Address = "https://api.openai.com"
                 }
             }
-        }
+        },
         // new ClusterConfig
         // {
         //     ClusterId = "sim",
@@ -98,10 +136,16 @@ static ClusterConfig[] GetClusters()
         //         }
         //     }
         // }
+        new ClusterConfig
+        {
+            ClusterId = "claude",
+            Destinations = new Dictionary<string, DestinationConfig>
+            {
+                ["destination1"] = new DestinationConfig
+                {
+                    Address = "https://api.anthropic.com"
+                }
+            }
+        }
     ];
-}
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
