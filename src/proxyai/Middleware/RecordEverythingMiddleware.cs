@@ -3,16 +3,33 @@ using System.Text.Json;
 
 namespace proxyai.Middleware;
 
+public class RequestResponseRecord
+{
+    public DateTime Timestamp { get; set; }
+    public string Method { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public string QueryString { get; set; } = string.Empty;
+    public string RequestBody { get; set; } = string.Empty;
+    public string ResponseBody { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+}
+
 public class RecordEverythingMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly string _logFilePath;
-    private readonly SemaphoreSlim _fileLock = new(1, 1);
+    private readonly string _recordedDirectory;
+    private static int _requestCounter = 0;
 
     public RecordEverythingMiddleware(RequestDelegate next)
     {
         _next = next;
-        _logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "recorded.txt");
+        _recordedDirectory = Path.Combine(Directory.GetCurrentDirectory(), "recorded");
+
+        // Create directory if it doesn't exist
+        if (!Directory.Exists(_recordedDirectory))
+        {
+            Directory.CreateDirectory(_recordedDirectory);
+        }
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -66,36 +83,37 @@ public class RecordEverythingMiddleware
         // Restore the original response body stream
         context.Response.Body = originalResponseBody;
 
-        var logEntry = new StringBuilder();
-        logEntry.AppendLine($"=== {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} UTC ===");
-        logEntry.AppendLine($"Method: {context.Request.Method}");
-        logEntry.AppendLine($"Path: {context.Request.Path}{context.Request.QueryString}");
-        // logEntry.AppendLine("Headers:");
-        // foreach (var header in context.Request.Headers)
-        // {
-        //     logEntry.AppendLine($"  {header.Key}: {header.Value}");
-        // }
-        logEntry.AppendLine("Request Body:");
-        logEntry.AppendLine(requestBody);
-        logEntry.AppendLine("Response Body:");
-        logEntry.AppendLine(responseBody);
-        logEntry.AppendLine("---");
+        // Create record object
+        var record = new RequestResponseRecord
+        {
+            Timestamp = DateTime.UtcNow,
+            Method = context.Request.Method,
+            Path = context.Request.Path.ToString(),
+            QueryString = context.Request.QueryString.ToString(),
+            RequestBody = requestBody,
+            ResponseBody = responseBody,
+            StatusCode = context.Response.StatusCode
+        };
 
-
-        // Write to log file
-        await WriteToLogFileAsync(logEntry);
+        // Write to individual JSON file
+        await WriteRecordToFileAsync(record);
     }
 
-    private async Task WriteToLogFileAsync(StringBuilder logEntry)
+    private async Task WriteRecordToFileAsync(RequestResponseRecord record)
     {
-        await _fileLock.WaitAsync();
-        try
+        // Generate unique filename with timestamp and sequential counter
+        var timestamp = record.Timestamp.ToString("yyyyMMdd_HHmmss");
+        var counter = Interlocked.Increment(ref _requestCounter);
+        var filename = $"{timestamp}_{counter:D3}.json";
+        var filePath = Path.Combine(_recordedDirectory, filename);
+
+        // Serialize to JSON with indentation
+        var json = JsonSerializer.Serialize(record, new JsonSerializerOptions
         {
-            await File.AppendAllTextAsync(_logFilePath, logEntry.ToString());
-        }
-        finally
-        {
-            _fileLock.Release();
-        }
+            WriteIndented = true
+        });
+
+        // Write to file
+        await File.WriteAllTextAsync(filePath, json);
     }
 }

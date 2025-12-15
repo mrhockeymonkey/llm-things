@@ -44,6 +44,7 @@ def main():
     coffeeChunker = RawTextChunkingStratedgy(size=128, overlap=5)
     coffeeChunks: List[RAGChunk] = coffeeChunker.process(COFFEE_KNOWLEDGE)
 
+    # Need to clone https://github.com/dotnet/EntityFramework.Docs
     efcoreChunker = MarkDownDirectoryChunkingStratedgy(
         input_dir="/home/scott/code/llm-things/src/langgraph-test/data/EntityFramework.Docs/entity-framework/core", 
         size=2048, 

@@ -16,7 +16,7 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddLogging(options =>
 {
-    //options.AddFile("log.txt", append: false);
+    options.AddFile("log.txt", append: false);
 });
 builder.Services.AddHttpLogging(options =>
 {
@@ -51,7 +51,7 @@ app.MapOpenApi();
 
 // OPTION Uncomment to log request/response to log.txt
 File.Delete("recorded.txt");
-//app.UseMiddleware<RecordEverythingMiddleware>();
+app.UseMiddleware<RecordEverythingMiddleware>();
 
 app.MapGet("/", () => Results.Json(new {hello = "world"}));
 app.MapReverseProxy();
